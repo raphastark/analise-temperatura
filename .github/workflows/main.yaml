@@ -1,0 +1,21 @@
+name: main
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    name: Build and deploy
+    uses: ./.github/workflows/build_deploy.yaml
+    with:
+      environment: production
+      image: streamlit-analise-temperatura
+      namespace: streamlit-apps
+      ingress_name: streamlit-analise-temperatura-ingress
+      ingress_url: analisetemperatura.mobilidade.rio
+      service: streamlit-analise-temperatura-svc
+      pod_name: streamlit-analise-temperatura
+      secret_name: streamlit-analise-temperatura-ingress
+    secrets: inherit

@@ -58,11 +58,9 @@ def plot_line():
         )
 
         fig.update_layout(width=1200, height=600)
-        fig.update_layout(
-            xaxis_title="Data e Hora GPS (UTC−03:00)", yaxis_title="Temperatura (ºC)"
-        )
+        fig.update_layout(xaxis_title="Tempo (HH:MM)", yaxis_title="Temperatura (ºC)")
         # grid (equivalente ao plt.grid(True))
-        fig.update_xaxes(showgrid=True)
+        fig.update_xaxes(showgrid=True, tickformat="%H:%M")
         fig.update_yaxes(showgrid=True)
 
         st.session_state["line_chart"] = fig
@@ -81,6 +79,7 @@ def get_data_and_plot():
         st.session_state["date_informed"] = False
         return
 
+    st.session_state["show_datetime"] = True
     st.session_state["button_already_clicked"] = True
 
     get_tracking()
@@ -90,6 +89,9 @@ def get_data_and_plot():
 
 st.set_page_config("Análise de temperatura dos veículos", page_icon="./favicon.ico")
 st.title("Análise de temperatura dos veículos")
+
+if "show_datetime" not in st.session_state:
+    st.session_state["show_datetime"] = False
 
 if "date_informed" not in st.session_state:
     st.session_state["date_informed"] = True
@@ -121,6 +123,11 @@ if not st.session_state["date_informed"]:
     st.write("Informe uma data de busca")
 
 button = st.button("Buscar", on_click=get_data_and_plot)
+
+
+if st.session_state["show_datetime"]:
+    st.write(f"Hora da busca:")
+    st.write(datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
 
 if not st.session_state["dataframe"].empty:
     st.dataframe(st.session_state["dataframe"])

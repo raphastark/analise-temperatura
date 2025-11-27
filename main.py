@@ -3,7 +3,7 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 def get_tracking():
@@ -59,7 +59,6 @@ def plot_line():
 
         fig.update_layout(width=1200, height=600)
         fig.update_layout(xaxis_title="Tempo (HH:MM)", yaxis_title="Temperatura (ºC)")
-        # grid (equivalente ao plt.grid(True))
         fig.update_xaxes(showgrid=True, tickformat="%H:%M")
         fig.update_yaxes(showgrid=True)
 
@@ -126,8 +125,9 @@ button = st.button("Buscar", on_click=get_data_and_plot)
 
 
 if st.session_state["show_datetime"]:
-    st.write(f"Hora da busca:")
-    st.write(datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+    st.write("Hora da busca:")
+    utc_minus_3 = timezone(timedelta(hours=-3))
+    st.write(datetime.now(utc_minus_3).strftime("%d/%m/%Y %H:%M:%S"))
 
 if not st.session_state["dataframe"].empty:
     st.dataframe(st.session_state["dataframe"])

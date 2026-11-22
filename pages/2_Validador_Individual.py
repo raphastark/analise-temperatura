@@ -5,9 +5,22 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 
-FUSO_BRASILIA = timezone(timedelta(hours=-3))
+from theme import html_indicador, renderizar_header
+from ui import (
+    LIMITE_TEMPERATURA,
+    TEMP_MAX_PLAUSIVEL,
+    TEMP_MIN_PLAUSIVEL,
+    agora_brasilia,
+    configurar_pagina,
+    cor_dado,
+    cor_texto,
+    estilizar_grafico,
+    formatar_percentual,
+    formatar_temperatura,
+)
+
 # Número de série do validador (ex.: B35T020D00206579). Qualquer outro texto
 # vindo da URL é ignorado, e a página abre vazia como antes.
 PADRAO_VALIDADOR = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
@@ -15,14 +28,14 @@ PADRAO_VALIDADOR = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 def hoje_brasilia() -> date:
     """Dia atual em Brasília (o servidor roda em UTC)."""
-    return datetime.now(FUSO_BRASILIA).date()
+    return agora_brasilia().date()
 
 
 def ler_parametros_url():
     """(validador, data) de ?validador=...&data=AAAA-MM-DD, ou None.
 
-    Usado pelo link "ver curva" do painel de monitoramento da frota. Sem data
-    válida, vale o dia atual em Brasília.
+    Usado pelo link "Ver histórico" do painel de monitoramento da frota. Sem
+    data válida, vale o dia atual em Brasília.
     """
     validador = str(st.query_params.get("validador", "")).strip()
     if not PADRAO_VALIDADOR.match(validador):
@@ -60,39 +73,6 @@ def get_tracking(validador, data):
         st.session_state["dataframe"] = pd.DataFrame()
 
 
-def plot_histogram():
-    if not st.session_state["dataframe"].empty:
-        df = st.session_state["dataframe"]
-        fig = px.histogram(
-            df,
-            x="temperatura",
-            title="Distribuição da Temperatura",
-            nbins=20,
-        )
-        fig.update_layout(xaxis_title="Temperatura (ºC)", yaxis_title="Frequência")
-        fig.update_layout(width=1200, height=600)
-        fig.update_traces(marker_line_color="black", marker_line_width=1.5)
-        st.session_state["histogram"] = fig
-
-
-def plot_line():
-    if not st.session_state["dataframe"].empty:
-        df = st.session_state["dataframe"]
-        fig = px.line(
-            df,
-            x="timestamp_gps",
-            y="temperatura",
-            title="Temperatura ao Longo do Tempo",
-        )
-
-        fig.update_layout(width=1200, height=600)
-        fig.update_layout(xaxis_title="Tempo (HH:MM)", yaxis_title="Temperatura (ºC)")
-        fig.update_xaxes(showgrid=True, tickformat="%H:%M")
-        fig.update_yaxes(showgrid=True)
-
-        st.session_state["line_chart"] = fig
-
-
 def get_data_and_plot(validador, data):
     validador = str(validador or "").strip()
     if validador:
@@ -107,14 +87,12 @@ def get_data_and_plot(validador, data):
         st.session_state["date_informed"] = False
         return
 
-    st.session_state["show_datetime"] = True
+    st.session_state["consultado_em"] = agora_brasilia()
     st.session_state["button_already_clicked"] = True
 
     get_tracking(validador, data)
-    plot_histogram()
-    plot_line()
 
-    # A URL passa a refletir a busca: dá para compartilhar o link desta curva.
+    # A URL passa a refletir a busca: dá para compartilhar o link deste histórico.
     st.session_state["parametros_processados"] = (validador, data)
     st.query_params["validador"] = validador
     st.query_params["data"] = data.isoformat()
@@ -127,11 +105,132 @@ def buscar():
     )
 
 
-st.set_page_config("Análise de temperatura dos veículos", page_icon="./favicon.ico")
-st.title("Análise de temperatura dos veículos")
+def leituras_plausiveis(df: pd.DataFrame) -> pd.DataFrame:
+    temperatura = pd.to_numeric(df["temperatura"], errors="coerce")
+    return df[temperatura.between(TEMP_MIN_PLAUSIVEL, TEMP_MAX_PLAUSIVEL)]
 
-if "show_datetime" not in st.session_state:
-    st.session_state["show_datetime"] = False
+
+def render_kpis(df: pd.DataFrame):
+    """Última leitura, máxima do dia e leituras acima de 24 °C, neutros."""
+    ordenado = df.sort_values("timestamp_gps")
+    ultima = ordenado.iloc[-1]
+    validas = leituras_plausiveis(ordenado)
+    estado = ultima.get("estado_equipamento")
+    estado_txt = f" · {estado}" if isinstance(estado, str) and estado else ""
+
+    col1, col2, col3 = st.columns(3, gap="small")
+    with col1:
+        st.markdown(
+            html_indicador(
+                "Última leitura",
+                formatar_temperatura(ultima["temperatura"]),
+                None,
+                f"às {ultima['timestamp_gps'].strftime('%H:%M')}{estado_txt}",
+            ),
+            unsafe_allow_html=True,
+        )
+    with col2:
+        if validas.empty:
+            st.markdown(
+                html_indicador("Máxima do dia", "—", None, "nenhuma leitura entre 8 e 45 °C"),
+                unsafe_allow_html=True,
+            )
+        else:
+            pico = validas.loc[pd.to_numeric(validas["temperatura"]).idxmax()]
+            st.markdown(
+                html_indicador(
+                    "Máxima do dia",
+                    formatar_temperatura(pico["temperatura"]),
+                    None,
+                    f"às {pico['timestamp_gps'].strftime('%H:%M')}",
+                ),
+                unsafe_allow_html=True,
+            )
+    with col3:
+        acima = int((pd.to_numeric(validas["temperatura"]) > LIMITE_TEMPERATURA).sum())
+        total_validas = len(validas)
+        invalidas = len(ordenado) - total_validas
+        legenda = (
+            f"{formatar_percentual(acima / total_validas * 100)} das leituras válidas"
+            if total_validas else "sem leituras válidas"
+        )
+        if invalidas:
+            legenda += f" · {invalidas} fora de 8–45 °C"
+        st.markdown(
+            html_indicador("Acima de 24 °C", acima, total_validas or None, legenda),
+            unsafe_allow_html=True,
+        )
+
+
+def render_graficos(df: pd.DataFrame):
+    ordenado = df.sort_values("timestamp_gps")
+    linha = px.line(
+        ordenado,
+        x="timestamp_gps",
+        y="temperatura",
+        title="Temperatura ao longo do dia",
+    )
+    linha.update_traces(
+        line=dict(color=cor_dado(), width=2),
+        hovertemplate="%{x|%H:%M:%S}<br>%{y:.1f} °C<extra></extra>",
+    )
+    linha.add_hline(
+        y=LIMITE_TEMPERATURA,
+        line=dict(color=cor_texto("muted"), width=1, dash="dash"),
+        annotation_text="24 °C",
+        annotation_position="bottom right",
+        annotation_font=dict(family="IBM Plex Mono, monospace", size=11, color=cor_texto("muted")),
+    )
+    linha.update_xaxes(title_text="Horário", tickformat="%H:%M")
+    linha.update_yaxes(title_text="Temperatura (°C)")
+    st.plotly_chart(estilizar_grafico(linha, altura=420), width="stretch")
+
+    histograma = px.histogram(
+        ordenado,
+        x="temperatura",
+        nbins=20,
+        title="Distribuição das leituras",
+    )
+    histograma.update_traces(
+        marker=dict(color=cor_dado(), line=dict(width=0)),
+        hovertemplate="%{x} °C<br>%{y} leituras<extra></extra>",
+    )
+    histograma.update_xaxes(title_text="Temperatura (°C)")
+    histograma.update_yaxes(title_text="Leituras")
+    st.plotly_chart(estilizar_grafico(histograma, altura=320), width="stretch")
+
+
+def render_tabela(df: pd.DataFrame):
+    tabela = pd.DataFrame({
+        "Validador": df["id_validador"] if "id_validador" in df else "—",
+        "Horário": df["timestamp_gps"].dt.strftime("%d/%m/%Y %H:%M:%S"),
+        "Temperatura": df["temperatura"].map(formatar_temperatura),
+    })
+    if "estado_equipamento" in df:
+        tabela["Estado"] = df["estado_equipamento"].fillna("—")
+    temperatura = pd.to_numeric(df["temperatura"], errors="coerce")
+    plausivel = temperatura.between(TEMP_MIN_PLAUSIVEL, TEMP_MAX_PLAUSIVEL)
+    acima = plausivel & (temperatura > LIMITE_TEMPERATURA)
+
+    def _estilo(coluna):
+        if coluna.name != "Temperatura":
+            return [""] * len(coluna)
+        return [
+            f"color: {cor_texto('warning-text')}; font-weight: 600;" if a
+            else ("" if p else f"color: {cor_texto('muted')};")
+            for a, p in zip(acima, plausivel)
+        ]
+
+    st.markdown("**Leituras**")
+    st.dataframe(
+        tabela.reset_index(drop=True).style.apply(_estilo, axis=0),
+        width="stretch",
+        hide_index=True,
+        height=420,
+    )
+
+
+configurar_pagina("Histórico do validador · Temperatura · Novacap")
 
 if "date_informed" not in st.session_state:
     st.session_state["date_informed"] = True
@@ -144,12 +243,6 @@ if "button_already_clicked" not in st.session_state:
 
 if "dataframe" not in st.session_state:
     st.session_state["dataframe"] = pd.DataFrame()
-
-if "histogram" not in st.session_state:
-    st.session_state["histogram"] = None
-
-if "line_chart" not in st.session_state:
-    st.session_state["line_chart"] = None
 
 if "campo_validador" not in st.session_state:
     st.session_state["campo_validador"] = ""
@@ -167,37 +260,41 @@ buscar_pela_url = (
 if buscar_pela_url:
     st.session_state["campo_validador"], st.session_state["campo_data"] = parametros_url
 
-# validators = pd.read_csv("validadores.csv")["numero_serie_equipamento"].tolist()
+renderizar_header(
+    titulo="Histórico do validador",
+    subtitulo="Todas as leituras de um dia · horário de Brasília",
+)
 
-# valitador = st.selectbox("Identificação do validador", options=validators)
-st.text_input("Identificação do validador", key="campo_validador")
+col_validador, col_data, col_botao = st.columns([3, 2, 1], gap="small", vertical_alignment="bottom")
+with col_validador:
+    st.text_input(
+        "Número de série do validador",
+        key="campo_validador",
+        placeholder="B35T020D00206579",
+    )
+with col_data:
+    st.date_input("Data", key="campo_data", format="DD/MM/YYYY")
+with col_botao:
+    st.button("Buscar", on_click=buscar, width="stretch")
+
 if not st.session_state["validator_informed"]:
-    st.write("Informe um identificador de validador")
-
-st.date_input("Data", key="campo_data", format="DD/MM/YYYY")
+    st.warning("Informe o número de série do validador.")
 if not st.session_state["date_informed"]:
-    st.write("Informe uma data de busca")
-
-button = st.button("Buscar", on_click=buscar)
+    st.warning("Informe a data da busca.")
 
 if buscar_pela_url:
     get_data_and_plot(*parametros_url)
 
-
-if st.session_state["show_datetime"]:
-    st.write("Hora da busca:")
-    st.write(datetime.now(FUSO_BRASILIA).strftime("%d/%m/%Y %H:%M:%S"))
-
-if not st.session_state["dataframe"].empty:
-    st.dataframe(st.session_state["dataframe"])
-else:
-    st.session_state["histogram"] = None
-    st.session_state["line_chart"] = None
-    if st.session_state["button_already_clicked"]:
-        st.write("Nenhum resultado encontrado")
-
-if st.session_state["histogram"]:
-    st.plotly_chart(st.session_state["histogram"])
-
-if st.session_state["line_chart"]:
-    st.plotly_chart(st.session_state["line_chart"])
+df_leituras = st.session_state["dataframe"]
+if not df_leituras.empty:
+    consultado = st.session_state.get("consultado_em")
+    if consultado:
+        st.caption(f"Consultado em {consultado.strftime('%d/%m/%Y %H:%M:%S')}")
+    render_kpis(df_leituras)
+    render_graficos(df_leituras)
+    render_tabela(df_leituras)
+elif st.session_state["button_already_clicked"]:
+    st.info(
+        "**Nenhuma leitura encontrada.** Confira o número de série e a data; "
+        "a API de rastreamento pode estar fora do ar."
+    )

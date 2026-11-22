@@ -4,13 +4,27 @@ import streamlit as st
 from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, Optional
+from urllib.parse import urlencode
 
-# Configuração da página
-st.set_page_config(
-    page_title="Dashboard da Frota",
-    page_icon="../favicon.ico",
-    layout="wide"
+from theme import (
+    COR_ATENCAO,
+    COR_DESABILITADA,
+    COR_OK,
+    ESTADO_INDISPONIVEL,
+    ESTADO_OPERACIONAL,
+    html_indicador,
+    renderizar_header,
 )
+from ui import (
+    LIMITE_TEMPERATURA,
+    agora_brasilia,
+    configurar_pagina,
+    cor_texto,
+    formatar_percentual,
+    formatar_temperatura,
+)
+
+configurar_pagina("Frota agora · Temperatura · Novacap")
 
 # URL do Google Sheets (CSV público)
 FLEET_MAPPING_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTTVotmQMdtPhZ610EXnwE89MHFdWu31XpQVcU1XEapXiW1F9dUy_b7C4cyJhBTdGj3YdKLzcpIxx0i/pub?output=csv"
@@ -88,101 +102,111 @@ def fetch_all_validators(validators: list) -> Dict:
     return results
 
 
-def get_compliance_status(temp: Optional[float]) -> Dict:
-    """Retorna o status de conformidade segundo SMTR 3857 (≤ 24°C)."""
-    if temp is None:
-        return {
-            "status": "Sem sinal",
-            "icon": "🔴",
-            "color": "#FF4444"
-        }
-    elif temp <= 24:
-        return {
-            "status": "Dentro da norma",
-            "icon": "✅",
-            "color": "#00CC00"
-        }
-    else:
-        return {
-            "status": "Acima de 24°C",
-            "icon": "⚠️",
-            "color": "#FF9900"
-        }
+# Situação da última leitura: (rótulo, cor do ponto, token da cor do texto).
+SITUACOES = {
+    "ok": ("Até 24 °C", COR_OK, "ok-text"),
+    "acima": ("Acima de 24 °C", COR_ATENCAO, "warning-text"),
+    "sem_sinal": ("Sem sinal", COR_DESABILITADA, "muted"),
+}
+FILTROS = ["Todos", "Acima de 24 °C", "Sem sinal"]
+
+
+def situacao(temp: Optional[float]) -> str:
+    """Situação segundo o limite de 24 °C da Resolução SMTR 3857."""
+    if temp is None or pd.isna(temp):
+        return "sem_sinal"
+    return "ok" if temp <= LIMITE_TEMPERATURA else "acima"
+
+
+def link_historico(validador: str, dia) -> str:
+    """Página do histórico deste app, já com o validador e o dia."""
+    return "./Validador_Individual?" + urlencode(
+        {"validador": validador, "data": dia.isoformat()}
+    )
 
 
 def render_kpis(fleet_data: pd.DataFrame):
-    """Renderiza os KPIs no topo do dashboard."""
+    """Três indicadores neutros: a cor fica na tabela, não no card."""
     total = len(fleet_data)
-    com_sinal = fleet_data["temperatura"].notna().sum()
+    com_sinal = int(fleet_data["temperatura"].notna().sum())
     sem_sinal = total - com_sinal
-    fora_norma = (fleet_data["temperatura"] > 24).sum()
+    fora_norma = int((fleet_data["situacao"] == "acima").sum())
     conformidade = (com_sinal - fora_norma) / total * 100 if total > 0 else 0
 
-    col1, col2, col3, col4, col5 = st.columns(5)
-
+    col1, col2, col3 = st.columns(3, gap="small")
     with col1:
-        st.metric(label="Total de Veículos", value=f"{total}")
-
+        st.markdown(
+            html_indicador(
+                "Acima de 24 °C", fora_norma, com_sinal,
+                "entre os veículos com sinal",
+            ),
+            unsafe_allow_html=True,
+        )
     with col2:
-        st.metric(label="Com Sinal", value=f"{com_sinal}/{total}")
-
+        st.markdown(
+            html_indicador(
+                "Com sinal", com_sinal, total,
+                f"{sem_sinal} sem leitura hoje",
+            ),
+            unsafe_allow_html=True,
+        )
     with col3:
-        st.metric(label="Sem Sinal", value=f"{sem_sinal}", delta=f"{sem_sinal/total*100:.1f}%" if sem_sinal > 0 else "")
-
-    with col4:
-        st.metric(label="Fora da Norma", value=fora_norma, delta=f"{fora_norma/total*100:.1f}%" if fora_norma > 0 else "")
-
-    with col5:
-        st.metric(label="Conformidade", value=f"{conformidade:.1f}%")
+        st.markdown(
+            html_indicador(
+                "Conformidade", formatar_percentual(conformidade), None,
+                "veículos até 24 °C, sobre a frota toda",
+            ),
+            unsafe_allow_html=True,
+        )
 
 
 def render_fleet_table(fleet_data: pd.DataFrame, filter_option: str):
-    """Renderiza a tabela da frota com formatação condicional."""
-    # Aplica filtro
-    if filter_option == "Apenas fora da norma":
-        filtered = fleet_data[fleet_data["temperatura"] > 24]
-    elif filter_option == "Apenas sem sinal":
-        filtered = fleet_data[fleet_data["temperatura"].isna()]
+    """Tabela da frota: ponto + rótulo na situação, cor só no dado."""
+    if filter_option == "Acima de 24 °C":
+        filtered = fleet_data[fleet_data["situacao"] == "acima"]
+    elif filter_option == "Sem sinal":
+        filtered = fleet_data[fleet_data["situacao"] == "sem_sinal"]
     else:
         filtered = fleet_data
 
-    # Prepara DataFrame para exibição
-    display_df = filtered.copy()
-    display_df = display_df.sort_values("Nº Ordem")
-
-    # Cria coluna de status formatado (ícone + texto)
-    display_df["status_display"] = display_df.apply(
-        lambda row: f"{row['icon']} {row['status_raw']}", axis=1
-    )
-
-    # Formata temperatura
-    display_df["temperatura"] = display_df["temperatura"].apply(
-        lambda x: f"{x:.1f}°C" if pd.notna(x) else "—"
-    )
-
-    # Formata timestamp
-    display_df["timestamp"] = display_df["timestamp"].apply(
-        lambda x: x.strftime("%H:%M") if pd.notna(x) else "—"
-    )
-
-    # Renomeia colunas
-    display_df = display_df.rename(columns={
-        "Nº Ordem": "Ônibus",
-        "validador_id": "Validador",
-        "temperatura": "Temperatura",
-        "status_display": "Status",
-        "timestamp": "Última Leitura"
+    display_df = filtered.sort_values("Nº Ordem").reset_index(drop=True)
+    hoje = agora_brasilia().date()
+    tabela = pd.DataFrame({
+        "Ônibus": display_df["Nº Ordem"].astype(str),
+        "Validador": display_df["validador_id"],
+        "Temperatura": display_df["temperatura"].map(formatar_temperatura),
+        "Situação": display_df["situacao"].map(lambda s: f"● {SITUACOES[s][0]}"),
+        "Última leitura": display_df["timestamp"].map(
+            lambda x: x.strftime("%H:%M") if pd.notna(x) else "—"
+        ),
+        "Histórico": display_df["validador_id"].map(lambda v: link_historico(v, hoje)),
     })
+    cores = display_df["situacao"].map(lambda s: cor_texto(SITUACOES[s][2]))
 
-    # Reordena colunas
-    display_df = display_df[["Ônibus", "Validador", "Temperatura", "Status", "Última Leitura"]]
+    def _estilo(coluna):
+        if coluna.name == "Situação":
+            return [f"color: {cor};" for cor in cores]
+        if coluna.name == "Temperatura":
+            return [
+                f"color: {cor}; font-weight: 600;" if s == "acima" else ""
+                for cor, s in zip(cores, display_df["situacao"])
+            ]
+        if coluna.name == "Última leitura":
+            return [f"color: {cor_texto('muted')};" if t == "—" else "" for t in coluna]
+        return [""] * len(coluna)
 
-    # Exibe tabela
     st.dataframe(
-        display_df,
-        use_container_width=True,
+        tabela.style.apply(_estilo, axis=0),
+        width="stretch",
         hide_index=True,
         height=600,
+        column_config={
+            "Histórico": st.column_config.LinkColumn(
+                "Histórico",
+                display_text="Ver histórico",
+                help="Leituras de hoje deste validador",
+            ),
+        },
     )
 
 
@@ -190,70 +214,71 @@ def render_fleet_table(fleet_data: pd.DataFrame, filter_option: str):
 # MAIN
 # =============================================================================
 
-st.title("🚌 Dashboard da Frota")
+@st.fragment(run_every=AUTO_REFRESH_INTERVAL)
+def painel_frota():
+    """Página inteira; o fragmento se refaz sozinho a cada AUTO_REFRESH_INTERVAL s."""
+    fleet_mapping = get_fleet_mapping()
 
-# Busca mapeamento da frota
-fleet_mapping = get_fleet_mapping()
+    if fleet_mapping.empty:
+        renderizar_header(titulo="Frota agora", subtitulo="Temperatura nos validadores com sensor")
+        st.error(
+            "**Mapeamento da frota indisponível.** A planilha de validadores "
+            "não respondeu; tente de novo em alguns minutos."
+        )
+        return
 
-if fleet_mapping.empty:
-    st.error("Não foi possível carregar o mapeamento da frota. Verifique a conexão com o Google Sheets.")
-    st.stop()
+    validators = fleet_mapping["validador_com_sensor"].tolist()
 
-# Busca dados de todos os validadores
-validators = fleet_mapping["validador_com_sensor"].tolist()
+    with st.spinner("Buscando dados dos validadores..."):
+        validator_results = fetch_all_validators(validators)
 
-with st.spinner("Buscando dados dos validadores..."):
-    validator_results = fetch_all_validators(validators)
+    fleet_data = []
+    for _, row in fleet_mapping.iterrows():
+        validator_id = row["validador_com_sensor"]
+        data = validator_results.get(validator_id)
+        temp = data["temperatura"] if data else None
+        fleet_data.append({
+            "Nº Ordem": row["Nº Ordem"],
+            "validador_id": validator_id,
+            "temperatura": temp,
+            "timestamp": data["timestamp"] if data else None,
+            "situacao": situacao(temp),
+        })
+    fleet_df = pd.DataFrame(fleet_data)
 
-# Monta DataFrame com os resultados
-fleet_data = []
-for _, row in fleet_mapping.iterrows():
-    bus_number = row["Nº Ordem"]
-    validator_id = row["validador_com_sensor"]
-    data = validator_results.get(validator_id)
-
-    temp = data["temperatura"] if data else None
-    timestamp = data["timestamp"] if data else None
-    status_info = get_compliance_status(temp)
-
-    fleet_data.append({
-        "Nº Ordem": bus_number,
-        "validador_id": validator_id,
-        "temperatura": temp,
-        "timestamp": timestamp,
-        "status_raw": status_info["status"],
-        "icon": status_info["icon"],
-    })
-
-fleet_df = pd.DataFrame(fleet_data)
-
-# Renderiza KPIs
-render_kpis(fleet_df)
-
-st.divider()
-
-# Filtros
-col1, col2 = st.columns([3, 1])
-with col1:
-    filter_option = st.radio(
-        "Filtrar:",
-        ["Todos", "Apenas fora da norma", "Apenas sem sinal"],
-        horizontal=True
+    agora = agora_brasilia()
+    com_sinal = int(fleet_df["temperatura"].notna().sum())
+    renderizar_header(
+        titulo="Frota agora",
+        subtitulo=f"Atualização automática a cada {AUTO_REFRESH_INTERVAL // 60} min · Brasília",
+        selos=[(
+            "Rastreamento SMTR",
+            ESTADO_OPERACIONAL if com_sinal else ESTADO_INDISPONIVEL,
+            agora.strftime("%d/%m %H:%M:%S"),
+        )],
     )
-with col2:
-    last_update = datetime.now(timezone(timedelta(hours=-3))).strftime("%H:%M:%S")
-    st.caption(f"Última atualização: {last_update}")
 
-# Renderiza tabela
-render_fleet_table(fleet_df, filter_option)
+    render_kpis(fleet_df)
 
-# Auto-refresh usando JavaScript (meta refresh)
-# Isso recarrega a página inteira a cada X segundos
-refresh_html = f"""
-<script>
-    setTimeout(function() {{
-        location.reload();
-    }}, {AUTO_REFRESH_INTERVAL * 1000});
-</script>
-"""
-st.components.v1.html(refresh_html, height=0)
+    contagens = {
+        "Todos": len(fleet_df),
+        "Acima de 24 °C": int((fleet_df["situacao"] == "acima").sum()),
+        "Sem sinal": int((fleet_df["situacao"] == "sem_sinal").sum()),
+    }
+    filter_option = st.segmented_control(
+        "Mostrar",
+        FILTROS,
+        default="Todos",
+        format_func=lambda opcao: f"{opcao} · {contagens[opcao]}",
+        key="filtro_frota",
+        label_visibility="collapsed",
+    ) or "Todos"
+
+    render_fleet_table(fleet_df, filter_option)
+    st.caption(
+        "Limite de 24 °C da Resolução SMTR 3857, sem a tolerância pela "
+        "temperatura externa do INMET."
+    )
+
+
+painel_frota()

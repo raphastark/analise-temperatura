@@ -1,0 +1,42 @@
+# Tema visual Novacap (identidade de marca).
+# Fundo, widgets e a grade do st.dataframe seguem estes valores; os blocos
+# HTML próprios usam as variáveis --nv-* injetadas por theme.py.
+# Laranja é exclusivo da marca: não aparece como cor primária nem de alerta.
+
+[theme]
+font = "Barlow:https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&display=swap"
+headingFont = "Barlow:https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&display=swap"
+codeFont = "IBM Plex Mono:https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap"
+baseRadius = "8px"
+buttonRadius = "6px"
+showWidgetBorder = true
+
+[theme.dark]
+primaryColor = "#7C93C3"
+backgroundColor = "#0F141C"
+secondaryBackgroundColor = "#171D28"
+textColor = "#ECEEF2"
+borderColor = "#3A4459"
+dataframeBorderColor = "#2A3446"
+dataframeHeaderBackgroundColor = "#171D28"
+linkColor = "#7C93C3"
+redColor = "#F05A5A"
+orangeColor = "#E8A33D"
+yellowColor = "#E8A33D"
+greenColor = "#58D19B"
+blueColor = "#7C93C3"
+
+[theme.light]
+primaryColor = "#2B3245"
+backgroundColor = "#F3F4F7"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#1A1D24"
+borderColor = "#C9CED8"
+dataframeBorderColor = "#DDE1E8"
+dataframeHeaderBackgroundColor = "#F3F4F7"
+linkColor = "#2B3245"
+redColor = "#F05A5A"
+orangeColor = "#E8A33D"
+yellowColor = "#E8A33D"
+greenColor = "#58D19B"
+blueColor = "#7C93C3"

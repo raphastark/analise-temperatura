@@ -1,0 +1,511 @@
+/* =====================================================================
+   NOVACAP — Tema visual compartilhado
+   Fonte única de estilos do Monitoramento de Frota.
+   Importado pelo app.py e por pages/1_Tabela_Completa.py via theme.py.
+
+   As variáveis --nv-* são injetadas por theme.py conforme o modo ativo
+   (claro/escuro). Fundo da página, widgets e a grade do st.dataframe
+   seguem .streamlit/config.toml ([theme.dark] e [theme.light]).
+
+   Regra: o laranja (--nv-brand) é só da marca — logo e fio do cabeçalho.
+   Nunca usar laranja para alerta, botão ou destaque de dado.
+   --------------------------------------------------------------------- */
+
+@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+    --nv-font: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --nv-font-num: 'Barlow Condensed', 'Barlow', system-ui, sans-serif;
+    --nv-font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+    --nv-radius: 8px;
+    --nv-radius-control: 6px;
+    --nv-gap-blocos: 20px;
+    --nv-gap-cards: 14px;
+}
+
+/* =====================================================================
+   BASE
+   --------------------------------------------------------------------- */
+html, body, .stApp, [data-testid="stAppViewContainer"],
+[data-testid="stMarkdownContainer"], [data-testid="stSidebar"],
+button, input, select, textarea {
+    font-family: var(--nv-font);
+}
+
+h1, h2, h3, h4, h5 {
+    font-family: var(--nv-font) !important;
+    letter-spacing: 0;
+}
+
+.block-container {
+    padding-top: 1.5rem !important;
+    padding-bottom: 1rem !important;
+    max-width: 1480px !important;
+}
+
+[data-testid="stMainBlockContainer"] [data-testid="stVerticalBlock"] {
+    gap: var(--nv-gap-cards);
+}
+
+/* O Streamlit compensa a margem de <p> com margin-bottom negativo no
+   contêiner de markdown; nos blocos HTML próprios isso cola os cards. */
+[data-testid="stMarkdownContainer"]:has(> .nv-header, > .nv-kpi, > .nv-oc-head, > .nv-sem-oc,
+    > .nv-section-title, > .nv-overline, > .nv-oc-nota, > .nv-cat-head, > .dash-footer) {
+    margin-bottom: 0 !important;
+}
+
+/* Cards de ocorrência da mesma linha com a mesma altura */
+.st-key-nv_ocorrencias [data-testid="stColumn"] > [data-testid="stVerticalBlock"] {
+    height: 100%;
+}
+.st-key-nv_ocorrencias [data-testid="stColumn"] > [data-testid="stVerticalBlock"] > [data-testid="stLayoutWrapper"] {
+    flex: 1 1 auto;
+}
+
+/* =====================================================================
+   CABEÇALHO DE MARCA
+   --------------------------------------------------------------------- */
+.nv-header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 26px;
+    background: var(--nv-header-bg);
+    border-radius: var(--nv-radius);
+    border-bottom: 2px solid var(--nv-brand);
+    padding: 18px 28px;
+    color: var(--nv-header-text);
+}
+.nv-brand {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+}
+.nv-brand img {
+    display: block;
+    width: auto;
+    max-width: none;
+}
+.nv-boneco { height: 50px; }
+.nv-letras { height: 21px; }
+.nv-header-divider {
+    display: block;
+    width: 1px;
+    height: 42px;
+    background: var(--nv-header-divider);
+    flex-shrink: 0;
+}
+.nv-header-titulos {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+.nv-title {
+    font-family: var(--nv-font);
+    font-weight: 700;
+    font-size: 22px;
+    line-height: 1.1;
+    color: var(--nv-header-text);
+}
+.nv-sub {
+    font-family: var(--nv-font);
+    font-weight: 400;
+    font-size: 14px;
+    color: var(--nv-header-text-2);
+}
+.nv-header-status {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    margin-left: auto;
+}
+.nv-selo {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+}
+.nv-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+}
+.nv-selo-texto {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+.nv-selo-l1 {
+    font-family: var(--nv-font);
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--nv-header-text);
+    white-space: nowrap;
+}
+.nv-selo-l2 {
+    font-family: var(--nv-font-mono);
+    font-size: 13px;
+    color: var(--nv-header-text-2);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+    .nv-header { gap: 16px 22px; padding: 16px 18px; }
+    .nv-header-divider { display: none; }
+    .nv-header-status { margin-left: 0; width: 100%; flex-wrap: wrap; gap: 14px 28px; }
+}
+
+/* =====================================================================
+   BOTÕES E CONTROLES
+   --------------------------------------------------------------------- */
+.stButton > button,
+[data-testid="stPopover"] button {
+    font-family: var(--nv-font);
+    font-weight: 500;
+    font-size: 15px;
+    padding: 9px 18px;
+    min-height: 0;
+    border-radius: var(--nv-radius-control);
+    border: 1px solid var(--nv-control-border);
+    background: var(--nv-surface);
+    color: var(--nv-text);
+    box-shadow: none;
+}
+.stButton > button:hover,
+.stButton > button:focus:not(:active) {
+    border-color: var(--nv-muted);
+    color: var(--nv-text);
+    background: var(--nv-surface);
+}
+.stButton > button p { font-size: 15px; font-weight: 500; }
+
+[data-baseweb="input"], [data-baseweb="select"] > div {
+    border-radius: var(--nv-radius-control) !important;
+}
+
+/* =====================================================================
+   INDICADORES (3, neutros)
+   --------------------------------------------------------------------- */
+.nv-kpi {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--nv-surface);
+    border: 1px solid var(--nv-border);
+    border-radius: var(--nv-radius);
+    padding: 18px 22px;
+    min-height: 128px;
+    box-sizing: border-box;
+}
+.nv-kpi-label {
+    font-family: var(--nv-font);
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--nv-text-2);
+}
+.nv-kpi-value {
+    font-family: var(--nv-font-num);
+    font-weight: 700;
+    font-size: 46px;
+    line-height: 1;
+    color: var(--nv-kpi-value);
+    font-variant-numeric: tabular-nums;
+}
+.nv-kpi-value.nv-kpi-vazio { color: var(--nv-muted); }
+.nv-kpi-total {
+    font-size: 26px;
+    color: var(--nv-muted);
+    margin-left: 1px;
+}
+.nv-kpi-legend {
+    font-family: var(--nv-font);
+    font-size: 13px;
+    color: var(--nv-text-3);
+}
+
+/* =====================================================================
+   OCORRÊNCIAS QUE EXIGEM AÇÃO
+   --------------------------------------------------------------------- */
+.st-key-nv_ocorrencias {
+    background: var(--nv-surface);
+    border: 1px solid var(--nv-border) !important;
+    border-radius: var(--nv-radius) !important;
+    padding: 18px 20px !important;
+}
+.nv-oc-head {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+}
+.nv-oc-title {
+    font-family: var(--nv-font);
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--nv-text);
+}
+.nv-oc-resumo {
+    font-size: 14px;
+    color: var(--nv-text-3);
+}
+.nv-oc-pills {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+}
+.nv-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--nv-border);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 13px;
+    color: var(--nv-text-3);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+.nv-pill .nv-dot { margin-top: 0; }
+
+/* Card de categoria: container keyed `nv_cat_<gravidade>_<slug>` */
+[class*="st-key-nv_cat_"] {
+    border: 1px solid var(--nv-border);
+    border-radius: var(--nv-radius);
+    padding: 16px 18px;
+    gap: 10px !important;
+    height: 100%;
+}
+[class*="st-key-nv_cat_critica_"] {
+    background: var(--nv-critical-tint);
+}
+.nv-cat-head {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+.nv-cat-head .nv-dot { width: 9px; height: 9px; margin-top: 0; }
+.nv-cat-nome {
+    font-family: var(--nv-font);
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--nv-text);
+}
+.nv-cat-count {
+    margin-left: auto;
+    font-family: var(--nv-font-num);
+    font-weight: 700;
+    font-size: 26px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+.nv-cat-desc {
+    display: block;
+    font-size: 13px;
+    color: var(--nv-text-3);
+    margin-top: 6px;
+}
+
+/* Mini-tabela (no máximo 3 linhas) */
+table.nv-mini {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0 0;
+    font-size: 13px;
+    border: none;
+    display: table;
+}
+table.nv-mini th, table.nv-mini td {
+    border: none;
+    border-bottom: 1px solid var(--nv-border);
+    padding: 7px 6px 7px 0;
+    text-align: left;
+    background: transparent;
+    color: var(--nv-text);
+    font-size: 13px;
+    vertical-align: middle;
+    font-variant-numeric: tabular-nums;
+}
+table.nv-mini th {
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--nv-text-3);
+}
+table.nv-mini tr:last-child td { border-bottom: none; }
+table.nv-mini td.nv-veic { font-weight: 600; }
+table.nv-mini .nv-dir { text-align: right; padding-right: 0; white-space: nowrap; }
+table.nv-mini .nv-mono { font-family: var(--nv-font-mono); font-size: 12px; }
+table.nv-mini .nv-critico { color: var(--nv-critical-text); font-weight: 600; }
+table.nv-mini .nv-apagado { color: var(--nv-text-3); }
+
+/* "Ver detalhes" / "+ N veículos · ver todos": abre a janela de detalhes */
+.stButton[class*="st-key-nv_ver_"] > button,
+[class*="st-key-nv_ver_"] .stButton > button,
+[class*="st-key-nv_ver_"] button {
+    border: none;
+    background: transparent;
+    padding: 2px 0;
+    min-height: 0;
+    justify-content: flex-start;
+    color: var(--nv-text);
+}
+[class*="st-key-nv_ver_"] button p {
+    font-size: 13px;
+    font-weight: 600;
+}
+[class*="st-key-nv_ver_"] button p::after {
+    content: " ›";
+}
+[class*="st-key-nv_ver_"] button:hover p {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+[class*="st-key-nv_ver_"] { margin-top: auto; }
+
+/* Janela de detalhes */
+[data-testid="stDialog"] [role="dialog"] {
+    background: var(--nv-surface);
+    border: 1px solid var(--nv-border);
+    border-radius: var(--nv-radius);
+}
+[data-testid="stDialog"] .nv-cat-head { margin-bottom: 2px; }
+
+/* Rodapé "Sem ocorrências" */
+.nv-sem-oc {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--nv-border);
+}
+.nv-sem-oc-rotulo {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--nv-text-2);
+    margin-right: 4px;
+}
+.nv-oc-nota {
+    display: block;
+    font-size: 13px;
+    color: var(--nv-text-3);
+}
+
+/* =====================================================================
+   SEÇÕES
+   --------------------------------------------------------------------- */
+.nv-section-title {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin-top: 6px;
+}
+.nv-section-title .nv-oc-title { font-size: 18px; }
+.nv-overline {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--nv-text-2);
+    margin-top: 8px;
+}
+
+/* =====================================================================
+   TABELA (st.dataframe) — a grade usa a fonte e as cores do config.toml
+   --------------------------------------------------------------------- */
+[data-testid="stDataFrame"] {
+    border-radius: var(--nv-radius);
+    overflow: hidden;
+}
+
+/* =====================================================================
+   EXPANDERS (informativos e listas completas)
+   --------------------------------------------------------------------- */
+[data-testid="stExpander"] details {
+    border: 1px solid var(--nv-border);
+    border-radius: var(--nv-radius);
+    background: var(--nv-surface);
+}
+[data-testid="stExpander"] summary p {
+    font-family: var(--nv-font);
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--nv-text);
+}
+/* Ponto do rótulo: azul quando há veículos, cinza (com nome cinza) em zero */
+[class*="st-key-nv_info_ativo_"] [data-testid="stExpander"] summary p::before,
+[class*="st-key-nv_info_zero_"] [data-testid="stExpander"] summary p::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin: 0 10px 1px 2px;
+    vertical-align: middle;
+}
+[class*="st-key-nv_info_ativo_"] [data-testid="stExpander"] summary p::before {
+    background: var(--nv-info);
+}
+[class*="st-key-nv_info_zero_"] [data-testid="stExpander"] summary p::before {
+    background: var(--nv-info-zero);
+}
+[class*="st-key-nv_info_zero_"] [data-testid="stExpander"] summary p {
+    color: var(--nv-muted);
+}
+
+/* =====================================================================
+   BANNERS DE SAÚDE (st.error / st.warning / st.info)
+   --------------------------------------------------------------------- */
+[data-testid="stAlert"] {
+    border-radius: var(--nv-radius);
+}
+[data-testid="stAlert"] [data-testid="stMarkdownContainer"] p {
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* =====================================================================
+   LEGENDAS, SIDEBAR E RODAPÉ
+   --------------------------------------------------------------------- */
+[data-testid="stCaptionContainer"], .stCaption {
+    color: var(--nv-text-3) !important;
+    font-size: 13px !important;
+}
+
+[data-testid="stSidebar"] a[data-testid="stPageLink-NavLink"] {
+    border-radius: var(--nv-radius-control);
+}
+
+hr, [data-testid="stDivider"] {
+    border-color: var(--nv-border) !important;
+}
+
+.dash-footer {
+    font-family: var(--nv-font);
+    font-size: 13px;
+    color: var(--nv-text-3);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0 10px;
+}
+.dash-footer .pill {
+    font-family: var(--nv-font-mono);
+    font-size: 12px;
+    border: 1px solid var(--nv-border);
+    border-radius: 999px;
+    padding: 2px 9px;
+    color: var(--nv-text-2);
+}
+
+footer { visibility: hidden; }
+
+@media (max-width: 768px) {
+    .block-container { padding-left: 1rem !important; padding-right: 1rem !important; }
+    .nv-kpi-value { font-size: 40px; }
+    .nv-oc-pills { margin-left: 0; }
+}

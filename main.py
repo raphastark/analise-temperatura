@@ -12,7 +12,7 @@ st.set_page_config(page_title="Temperatura da frota · Novacap", page_icon=FAVIC
 
 pagina = st.navigation([
     st.Page("inicio.py", title="Início", default=True),
-    st.Page("pages/1_Dashboard_Frota.py", title="Frota agora", url_path="Dashboard_Frota"),
-    st.Page("pages/2_Validador_Individual.py", title="Histórico do validador", url_path="Validador_Individual"),
+    st.Page("paginas/1_Dashboard_Frota.py", title="Frota agora", url_path="Dashboard_Frota"),
+    st.Page("paginas/2_Validador_Individual.py", title="Histórico do validador", url_path="Validador_Individual"),
 ])
 pagina.run()

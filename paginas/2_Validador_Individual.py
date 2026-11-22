@@ -265,17 +265,22 @@ renderizar_header(
     subtitulo="Todas as leituras de um dia · horário de Brasília",
 )
 
-col_validador, col_data, col_botao = st.columns([3, 2, 1], gap="small", vertical_alignment="bottom")
-with col_validador:
-    st.text_input(
-        "Número de série do validador",
-        key="campo_validador",
-        placeholder="B35T020D00206579",
+# Formulário: o Enter no campo do validador envia a busca, como o botão.
+# Fora de um formulário, o Enter só confirmava o texto e recarregava a página.
+with st.form("busca_validador", border=False, enter_to_submit=True):
+    col_validador, col_data, col_botao = st.columns(
+        [3, 2, 1], gap="small", vertical_alignment="bottom"
     )
-with col_data:
-    st.date_input("Data", key="campo_data", format="DD/MM/YYYY")
-with col_botao:
-    st.button("Buscar", on_click=buscar, width="stretch")
+    with col_validador:
+        st.text_input(
+            "Número de série do validador",
+            key="campo_validador",
+            placeholder="B35T020D00206579",
+        )
+    with col_data:
+        st.date_input("Data", key="campo_data", format="DD/MM/YYYY")
+    with col_botao:
+        st.form_submit_button("Buscar", on_click=buscar, width="stretch")
 
 if not st.session_state["validator_informed"]:
     st.warning("Informe o número de série do validador.")

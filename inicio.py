@@ -19,7 +19,7 @@ with col_frota:
             "Última leitura do validador com sensor de cada veículo, "
             "atualizada a cada 1 min."
         )
-        st.page_link("pages/1_Dashboard_Frota.py", label="Abrir a frota")
+        st.page_link("paginas/1_Dashboard_Frota.py", label="Abrir a frota")
 
 with col_validador:
     with st.container(border=True):
@@ -28,7 +28,7 @@ with col_validador:
             "Todas as leituras de um validador num dia: gráfico ao longo do "
             "tempo, distribuição e tabela."
         )
-        st.page_link("pages/2_Validador_Individual.py", label="Abrir o histórico")
+        st.page_link("paginas/2_Validador_Individual.py", label="Abrir o histórico")
 
 st.caption(
     "Critério usado aqui: até 24 °C. A Resolução SMTR 3857 também considera "

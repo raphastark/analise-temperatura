@@ -4,9 +4,12 @@ Tema visual compartilhado — Viação Novacap
 
 CÓPIA de `theme.py` do repositório raphastark/monitoramento-frota, junto com
 `assets/novacap_theme.css`, os dois PNG da marca e `.streamlit/config.toml`.
-Para os painéis ficarem iguais, mude o tema lá e copie de novo para cá; aqui
-só este aviso difere do original. As funções de selo da Jaé e do GPS e a tabela de
-detalhamento não são usadas neste app; ficam para a cópia continuar idêntica.
+Para os painéis ficarem iguais, mude o tema lá e copie de novo para cá. Aqui
+diferem do original só este aviso e o título do cabeçalho, marcado como
+título de nível 1 (role="heading" aria-level="1") para leitores de tela, sem
+mudança visual: ao copiar de novo, mantenha essa marcação. As funções de selo
+da Jaé e do GPS e a tabela de detalhamento não são usadas neste app; ficam
+para a cópia continuar idêntica.
 
 Camada de apresentação única do dashboard: tokens de cor por modo
 (claro/escuro), folha de estilos (assets/novacap_theme.css), cabeçalho de
@@ -266,7 +269,7 @@ def renderizar_header(
         '</div>'
         '<span class="nv-header-divider"></span>'
         '<div class="nv-header-titulos">'
-        f'<span class="nv-title">{escape(titulo)}</span>'
+        f'<span class="nv-title" role="heading" aria-level="1">{escape(titulo)}</span>'
         f'{sub_html}'
         '</div>'
         f'<div class="nv-header-status">{selos_html}</div>'

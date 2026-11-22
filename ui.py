@@ -17,17 +17,10 @@ TEMP_MIN_PLAUSIVEL = 8.0
 TEMP_MAX_PLAUSIVEL = 45.0
 
 
-# Ajuste local, fora da cópia do tema: o novacap_theme.css reduz o respiro do
-# topo para 1,5rem e o cabeçalho de marca fica sob a barra fixa do Streamlit
-# (Share/Deploy, 60px).
-_CSS_LOCAL = "<style>.block-container{padding-top:4.25rem !important;}</style>"
-
-
 def configurar_pagina(titulo_aba: str, layout: str = "wide") -> None:
     """set_page_config com o favicon da Novacap e o tema; primeira chamada da página."""
     st.set_page_config(page_title=titulo_aba, page_icon=FAVICON, layout=layout)
     aplicar_tema()
-    st.markdown(_CSS_LOCAL, unsafe_allow_html=True)
 
 
 def agora_brasilia() -> datetime:

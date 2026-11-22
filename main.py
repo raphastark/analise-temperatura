@@ -1,24 +1,18 @@
+"""Entrada do app: navegação com os nomes das páginas, mantendo os endereços.
+
+Os caminhos /Dashboard_Frota e /Validador_Individual são os de antes: o link
+"Ver histórico" do painel de monitoramento da frota abre
+/Validador_Individual?validador=...&data=....
+"""
 import streamlit as st
 
-st.set_page_config(
-    page_title="Monitoramento de Temperatura",
-    page_icon="./favicon.ico",
-    layout="wide"
-)
+from ui import FAVICON
 
-st.title("🚌 Monitoramento de Temperatura da Frota")
+st.set_page_config(page_title="Temperatura da frota · Novacap", page_icon=FAVICON, layout="wide")
 
-st.markdown("""
-### Bem-vindo ao sistema de monitoramento!
-
-Selecione uma página no menu lateral:
-
-- **Dashboard da Frota**: Visão geral de todos os 140 veículos com status de temperatura em tempo real
-- **Validador Individual**: Consulta detalhada de um único validador (busca por data)
-
----
-
-**Critério SMTR 3857**: Ar condicionado funcionando quando temperatura ≤ 24°C
-""")
-
-st.info("💡 O dashboard da frota atualiza automaticamente a cada 1 minuto.", icon="ℹ️")
+pagina = st.navigation([
+    st.Page("inicio.py", title="Início", default=True),
+    st.Page("paginas/1_Dashboard_Frota.py", title="Frota agora", url_path="Dashboard_Frota"),
+    st.Page("paginas/2_Validador_Individual.py", title="Histórico do validador", url_path="Validador_Individual"),
+])
+pagina.run()

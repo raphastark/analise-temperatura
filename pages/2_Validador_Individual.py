@@ -1,13 +1,41 @@
+import re
+
 import requests
 import pandas as pd
 import streamlit as st
 import plotly.express as px
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
+
+FUSO_BRASILIA = timezone(timedelta(hours=-3))
+# Número de série do validador (ex.: B35T020D00206579). Qualquer outro texto
+# vindo da URL é ignorado, e a página abre vazia como antes.
+PADRAO_VALIDADOR = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
-def get_tracking():
-    date_time = datetime.fromordinal(selected_date.toordinal())
+def hoje_brasilia() -> date:
+    """Dia atual em Brasília (o servidor roda em UTC)."""
+    return datetime.now(FUSO_BRASILIA).date()
+
+
+def ler_parametros_url():
+    """(validador, data) de ?validador=...&data=AAAA-MM-DD, ou None.
+
+    Usado pelo link "ver curva" do painel de monitoramento da frota. Sem data
+    válida, vale o dia atual em Brasília.
+    """
+    validador = str(st.query_params.get("validador", "")).strip()
+    if not PADRAO_VALIDADOR.match(validador):
+        return None
+    try:
+        data = date.fromisoformat(str(st.query_params.get("data", "")).strip())
+    except ValueError:
+        data = hoje_brasilia()
+    return validador, data
+
+
+def get_tracking(validador, data):
+    date_time = datetime.fromordinal(data.toordinal())
     start_time = date_time + timedelta(hours=3)
     end_time = start_time + timedelta(days=1)
     url = "https://tracking.mobilidade.rio/api/v1/validador"
@@ -17,12 +45,12 @@ def get_tracking():
     params = {
         "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
         "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
-        "id_validador": valitador,
+        "id_validador": validador,
         "limit": 1440,
     }
-    r = requests.get(url, headers=headers, params=params)
 
     try:
+        r = requests.get(url, headers=headers, params=params, timeout=60)
         df = pd.DataFrame(r.json())
         df["timestamp_gps"] = pd.to_datetime(df["timestamp_gps"])
         df["timestamp_gps"] = df["timestamp_gps"].dt.tz_localize("UTC")
@@ -65,14 +93,15 @@ def plot_line():
         st.session_state["line_chart"] = fig
 
 
-def get_data_and_plot():
-    if valitador:
+def get_data_and_plot(validador, data):
+    validador = str(validador or "").strip()
+    if validador:
         st.session_state["validator_informed"] = True
     else:
         st.session_state["validator_informed"] = False
         return
 
-    if selected_date:
+    if data:
         st.session_state["date_informed"] = True
     else:
         st.session_state["date_informed"] = False
@@ -81,9 +110,21 @@ def get_data_and_plot():
     st.session_state["show_datetime"] = True
     st.session_state["button_already_clicked"] = True
 
-    get_tracking()
+    get_tracking(validador, data)
     plot_histogram()
     plot_line()
+
+    # A URL passa a refletir a busca: dá para compartilhar o link desta curva.
+    st.session_state["parametros_processados"] = (validador, data)
+    st.query_params["validador"] = validador
+    st.query_params["data"] = data.isoformat()
+
+
+def buscar():
+    get_data_and_plot(
+        st.session_state.get("campo_validador"),
+        st.session_state.get("campo_data"),
+    )
 
 
 st.set_page_config("Análise de temperatura dos veículos", page_icon="./favicon.ico")
@@ -110,24 +151,42 @@ if "histogram" not in st.session_state:
 if "line_chart" not in st.session_state:
     st.session_state["line_chart"] = None
 
+if "campo_validador" not in st.session_state:
+    st.session_state["campo_validador"] = ""
+
+if "campo_data" not in st.session_state:
+    st.session_state["campo_data"] = hoje_brasilia()
+
+# Link vindo do painel da frota (?validador=...&data=...): preenche os campos
+# e busca sozinho, uma vez por combinação. Sem parâmetros, nada muda.
+parametros_url = ler_parametros_url()
+buscar_pela_url = (
+    parametros_url is not None
+    and parametros_url != st.session_state.get("parametros_processados")
+)
+if buscar_pela_url:
+    st.session_state["campo_validador"], st.session_state["campo_data"] = parametros_url
+
 # validators = pd.read_csv("validadores.csv")["numero_serie_equipamento"].tolist()
 
 # valitador = st.selectbox("Identificação do validador", options=validators)
-valitador = st.text_input("Identificação do validador", value="")
+st.text_input("Identificação do validador", key="campo_validador")
 if not st.session_state["validator_informed"]:
     st.write("Informe um identificador de validador")
 
-selected_date = st.date_input("Data", value="today", format="DD/MM/YYYY")
+st.date_input("Data", key="campo_data", format="DD/MM/YYYY")
 if not st.session_state["date_informed"]:
     st.write("Informe uma data de busca")
 
-button = st.button("Buscar", on_click=get_data_and_plot)
+button = st.button("Buscar", on_click=buscar)
+
+if buscar_pela_url:
+    get_data_and_plot(*parametros_url)
 
 
 if st.session_state["show_datetime"]:
     st.write("Hora da busca:")
-    utc_minus_3 = timezone(timedelta(hours=-3))
-    st.write(datetime.now(utc_minus_3).strftime("%d/%m/%Y %H:%M:%S"))
+    st.write(datetime.now(FUSO_BRASILIA).strftime("%d/%m/%Y %H:%M:%S"))
 
 if not st.session_state["dataframe"].empty:
     st.dataframe(st.session_state["dataframe"])

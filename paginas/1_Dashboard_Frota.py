@@ -203,6 +203,7 @@ def render_fleet_table(fleet_data: pd.DataFrame, filter_option: str):
         width="stretch",
         hide_index=True,
         height=600,
+        placeholder="—",  # temperatura vazia: o Streamlit ignora o Styler e mostraria "None"
         column_config={
             "Histórico": st.column_config.LinkColumn(
                 "Histórico",

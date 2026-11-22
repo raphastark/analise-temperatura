@@ -230,6 +230,7 @@ def render_tabela(df: pd.DataFrame):
         width="stretch",
         hide_index=True,
         height=420,
+        placeholder="—",  # temperatura vazia: o Streamlit ignora o Styler e mostraria "None"
     )
 
 

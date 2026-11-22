@@ -204,7 +204,8 @@ def render_tabela(df: pd.DataFrame):
     tabela = pd.DataFrame({
         "Validador": df["id_validador"] if "id_validador" in df else "—",
         "Horário": df["timestamp_gps"].dt.strftime("%d/%m/%Y %H:%M:%S"),
-        "Temperatura": df["temperatura"].map(formatar_temperatura),
+        # Número, para a coluna ordenar como número; "30,2 °C" só na exibição.
+        "Temperatura": pd.to_numeric(df["temperatura"], errors="coerce"),
     })
     if "estado_equipamento" in df:
         tabela["Estado"] = df["estado_equipamento"].fillna("—")
@@ -223,7 +224,9 @@ def render_tabela(df: pd.DataFrame):
 
     st.markdown("**Leituras**")
     st.dataframe(
-        tabela.reset_index(drop=True).style.apply(_estilo, axis=0),
+        tabela.reset_index(drop=True).style.apply(_estilo, axis=0).format(
+            formatar_temperatura, subset=["Temperatura"]
+        ),
         width="stretch",
         hide_index=True,
         height=420,

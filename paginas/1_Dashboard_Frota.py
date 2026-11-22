@@ -174,7 +174,8 @@ def render_fleet_table(fleet_data: pd.DataFrame, filter_option: str):
     tabela = pd.DataFrame({
         "Ônibus": display_df["Nº Ordem"].astype(str),
         "Validador": display_df["validador_id"],
-        "Temperatura": display_df["temperatura"].map(formatar_temperatura),
+        # Número, para a coluna ordenar como número; "30,2 °C" só na exibição.
+        "Temperatura": pd.to_numeric(display_df["temperatura"], errors="coerce"),
         "Situação": display_df["situacao"].map(lambda s: f"● {SITUACOES[s][0]}"),
         "Última leitura": display_df["timestamp"].map(
             lambda x: x.strftime("%H:%M") if pd.notna(x) else "—"
@@ -196,7 +197,9 @@ def render_fleet_table(fleet_data: pd.DataFrame, filter_option: str):
         return [""] * len(coluna)
 
     st.dataframe(
-        tabela.style.apply(_estilo, axis=0),
+        tabela.style.apply(_estilo, axis=0).format(
+            formatar_temperatura, subset=["Temperatura"]
+        ),
         width="stretch",
         hide_index=True,
         height=600,

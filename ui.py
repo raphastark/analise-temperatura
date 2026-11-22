@@ -16,11 +16,20 @@ LIMITE_TEMPERATURA = 24.0  # Resolução SMTR 3857: regular até 24 °C (sem a t
 TEMP_MIN_PLAUSIVEL = 8.0
 TEMP_MAX_PLAUSIVEL = 45.0
 
+# O novacap_theme.css reduz o respiro do topo para 1,5rem. No painel da frota,
+# o componente invisível do st_autorefresh, primeiro elemento da página,
+# empurra o cabeçalho 40px para baixo da barra fixa do Streamlit (60px). Aqui
+# a atualização é por fragmento, sem esse componente, e o cabeçalho ficava sob
+# a barra. 50px (1,5rem + 40px, menos os 14px de espaçamento que este próprio
+# bloco de estilo ocupa) põem o cabeçalho na mesma altura do painel: 78px.
+_CSS_TOPO = "<style>.block-container{padding-top:50px !important;}</style>"
+
 
 def configurar_pagina(titulo_aba: str, layout: str = "wide") -> None:
     """set_page_config com o favicon da Novacap e o tema; primeira chamada da página."""
     st.set_page_config(page_title=titulo_aba, page_icon=FAVICON, layout=layout)
     aplicar_tema()
+    st.markdown(_CSS_TOPO, unsafe_allow_html=True)
 
 
 def agora_brasilia() -> datetime:
